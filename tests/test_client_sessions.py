@@ -297,6 +297,45 @@ class TestLoginSteps(unittest.TestCase):
         self.assertEqual(self.state["grants"], 2)
         self.assertEqual([c for c in self.adapter.calls if "Authorization" in (c[2] or "")], [])
 
+    def test_prompt_swapped_for_a_texted_code(self):
+
+        def replace_challenge(request):
+            self.assertEqual(parse_qs(request.body), {"challenge_type": ["sms"]})
+            return 200, {"id": "ch2", "type": "sms", "status": "issued"}
+
+        def respond(request):
+            if parse_qs(request.body)["response"] == ["123456"]:
+                self.state["challenge"] = "validated"
+                return 200, {"status": "validated"}
+            return 400, {"status": "failed"}
+
+        self.adapter.routes[("GET", "/pathfinder/inquiries/machine1/user_view/")] = lambda r: (
+            200,
+            {"context": {"sheriff_challenge": {"id": "ch1", "type": "prompt", "status": "issued"}}},
+        )
+        self.adapter.routes[("GET", "/push/ch1/get_prompts_status/")] = lambda r: (200, {"challenge_status": "issued"})
+        self.adapter.routes[("POST", "/challenge/ch1/replace/")] = replace_challenge
+        self.adapter.routes[("POST", "/challenge/ch2/respond/")] = respond
+
+        pending = clients.start_login("client@example.com", "pw", "device-fixed", session=self.session)
+        self.assertEqual((pending.challenge_id, pending.challenge_type), ("ch1", "prompt"))
+        self.assertFalse(clients.check_login(pending, session=self.session).approved)
+
+        pending = clients.request_code(PendingLogin.from_dict(pending.to_dict()), session=self.session)
+        self.assertEqual((pending.challenge_id, pending.challenge_type, pending.approved), ("ch2", "sms", False))
+        # The verification page still shows the prompt; checking keeps the texted code.
+        self.assertEqual(clients.check_login(pending, session=self.session).challenge_id, "ch2")
+
+        pending = clients.submit_code(pending, "123456", session=self.session)
+        result = clients.finish_login(pending, "client@example.com", "pw", session=self.session)
+        self.assertEqual(result.access_token, "access-1")
+
+    def test_code_needs_a_challenge(self):
+        with self.assertRaises(LoginFailed):
+            clients.request_code(PendingLogin(device_token="d", machine_id="m"), session=self.session)
+        with self.assertRaises(ValueError):
+            clients.request_code(PendingLogin(device_token="d", machine_id="m", challenge_id="c"), "prompt")
+
     def test_wrong_password(self):
         adapter = FakeRobinhood(
             {("POST", "/oauth2/token/"): lambda r: (400, {"detail": "Unable to log in with provided credentials."})}
