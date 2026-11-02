@@ -16,7 +16,9 @@ account (orders, transfers, watchlists...) and allow only reads plus the login,
 refresh and verification steps.
 
 Logging in is split into steps a web app can drive, without prompts:
-``start_login`` -> ``check_login`` or ``submit_code`` -> ``finish_login``.
+``start_login`` -> ``check_login`` or ``submit_code`` -> ``finish_login``. When
+an app approval doesn't arrive, ``request_code`` swaps it for a texted (or
+emailed) code, like "Text me instead" on robinhood.com; then ``submit_code``.
 ``refresh_tokens`` renews a session without the client. Nothing here prints a
 secret or writes a file; callers store the returned ``Tokens`` themselves.
 
@@ -272,6 +274,10 @@ def check_login(pending: PendingLogin, session: Optional[ReadOnlySession] = None
     if pending.challenge_type == "prompt" and pending.challenge_id:
         status = _json(session.get(f"https://{_HOST}/push/{pending.challenge_id}/get_prompts_status/"))
         return replace(pending, approved=status.get("challenge_status") == "validated")
+    if pending.challenge_type in _CODE_CHALLENGES and pending.challenge_id:
+        # A code is approved through submit_code. The verification page may still show the
+        # challenge request_code replaced, so don't read it back over this one.
+        return pending
     return _read_challenge(session, pending)
 
 
@@ -284,6 +290,28 @@ def submit_code(pending: PendingLogin, code: str, session: Optional[ReadOnlySess
     if result.get("status") != "validated":
         raise LoginFailed("Robinhood didn't accept that code.")
     return replace(pending, approved=True)
+
+
+_CODE_CHALLENGES = ("sms", "email")
+
+
+def request_code(pending: PendingLogin, method: str = "sms", session: Optional[ReadOnlySession] = None) -> PendingLogin:
+    """Have Robinhood text (or email) a code instead of waiting for an app approval.
+
+    What "Text me instead" does on robinhood.com: replace the challenge with one of
+    another type. Answer the code with ``submit_code``.
+    """
+    if method not in _CODE_CHALLENGES:
+        raise ValueError(f"method must be one of {_CODE_CHALLENGES}")
+    if not pending.challenge_id:
+        raise LoginFailed("There's no verification to change yet. Check the login again.")
+    session = session or new_session()
+    challenge = _json(
+        session.post(f"https://{_HOST}/challenge/{pending.challenge_id}/replace/", data={"challenge_type": method})
+    )
+    if not challenge.get("id"):
+        raise LoginFailed(_detail(challenge) or "Robinhood wouldn't send a code.")
+    return replace(pending, challenge_id=challenge["id"], challenge_type=challenge.get("type") or method, approved=False)
 
 
 def finish_login(
