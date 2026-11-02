@@ -7,11 +7,11 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
     long_description = f.read()
 
 setup(name='calcap-robin-stocks',
-      version='3.4.0.post2',
+      version='3.4.0.post3',
       description='A Python wrapper around the Robinhood API',
       long_description=long_description,
       long_description_content_type='text/x-rst',
-      url='https://github.com/anarghya-das/robin_stocks',
+      url='https://github.com/calcapfund/robin_stocks',
       author='Josh Fernandes',
       author_email='joshfernandes@mac.com',
       keywords=['robinhood','robin stocks','finance app','stocks','options','trading','investing'],

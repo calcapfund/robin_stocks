@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   sync:
-    if: github.repository == 'anarghya-das/robin_stocks'
+    if: github.repository == 'calcapfund/robin_stocks'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -44,5 +44,6 @@ jobs:
           python -m unittest discover -s tests -p test_fork_compatibility.py -v
           python -m unittest discover -s tests -p test_filter_data.py -v
           python -m unittest discover -s tests -p test_client_sessions.py -v
+          python -m unittest discover -s tests -p test_reads.py -v
       - name: Publish tested merge
         run: git push origin HEAD:master

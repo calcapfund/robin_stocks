@@ -81,6 +81,22 @@ Getting Crypto Information
 .. automodule:: calcap_robin_stocks.robinhood.crypto
    :members:
 
+Clients' Sessions and Logins (Calcap)
+-------------------------------------
+
+----
+
+.. automodule:: calcap_robin_stocks.robinhood.clients
+   :members:
+
+Strict Account Reads (Calcap)
+-----------------------------
+
+----
+
+.. automodule:: calcap_robin_stocks.robinhood.reads
+   :members:
+
 Export Information
 --------------------------
 

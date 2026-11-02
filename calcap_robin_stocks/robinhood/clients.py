@@ -19,6 +19,9 @@ Logging in is split into steps a web app can drive, without prompts:
 ``start_login`` -> ``check_login`` or ``submit_code`` -> ``finish_login``. When
 an app approval doesn't arrive, ``request_code`` swaps it for a texted (or
 emailed) code, like "Text me instead" on robinhood.com; then ``submit_code``.
+``verification_page`` shows where Robinhood's device check stands.
+
+Reading a client's account goes through ``reads`` (strict: every failure raises).
 ``refresh_tokens`` renews a session without the client. Nothing here prints a
 secret or writes a file; callers store the returned ``Tokens`` themselves.
 
@@ -293,6 +296,18 @@ def submit_code(pending: PendingLogin, code: str, session: Optional[ReadOnlySess
 
 
 _CODE_CHALLENGES = ("sms", "email")
+
+
+def verification_page(pending: PendingLogin, session: Optional[ReadOnlySession] = None) -> Dict[str, Any]:
+    """Robinhood's device-verification page for a login in progress, as Robinhood sends it.
+
+    Its ``context.sheriff_challenge`` is the challenge (type, status, expiry, retries
+    left); ``verification_workflow.workflow_status`` says where the check stands. For
+    diagnosing a login that stalls. It can include the masked phone or email a code
+    goes to, so callers should log only what they need.
+    """
+    session = session or new_session()
+    return _json(session.get(f"{_PATHFINDER}/inquiries/{pending.machine_id}/user_view/"))
 
 
 def request_code(pending: PendingLogin, method: str = "sms", session: Optional[ReadOnlySession] = None) -> PendingLogin:

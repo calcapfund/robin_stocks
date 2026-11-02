@@ -17,14 +17,15 @@ A merge conflict, failed test, or rejected push stops the workflow without
 changing the remote branch. Review failed runs in Actions, resolve conflicts
 locally, run the offline checks, and push the resolution. Changes that Git can
 merge automatically may still require review; these checks cover Calcap's
-custom filtering, transfer pagination and per-client sessions, not all Robinhood
-API behavior.
+custom filtering, transfer pagination, per-client sessions and strict reads, not
+all Robinhood API behavior.
 
 Local check (no brokerage credentials or API access required):
 
 ```sh
 python -m unittest discover -s tests -p test_fork_compatibility.py -v
 python -m unittest discover -s tests -p test_client_sessions.py -v
+python -m unittest discover -s tests -p test_reads.py -v
 ```
 
 ## Per-client sessions
@@ -44,6 +45,16 @@ use the shared login instead of the client's. `test_client_sessions.py` checks
 that clients stay separate and that client sessions refuse anything but reads
 and login steps.
 
-Calcap uses an editable local submodule, so remote updates do not automatically
-update a running checkout. Pull this fork's `master` inside `robin_stocks_src`,
-then commit the updated submodule pointer in the parent Calcap repository.
+## Strict reads
+
+`calcap_robin_stocks/robinhood/reads.py` is what Calcap's sync service reads
+clients' accounts with. It is new code, not a change to upstream's, so merges
+don't touch it. It builds URLs with `urls.py`; if upstream renames or removes a
+URL function it uses, `test_reads.py` fails.
+
+## Using an update in Calcap
+
+`calcap_api` installs this package from `master`, pinned to a commit in its
+`uv.lock`, so a merge here changes nothing there by itself. In `calcap_api`, run
+`uv lock --upgrade-package calcap-robin-stocks`, run its tests, and commit the
+lock file.
