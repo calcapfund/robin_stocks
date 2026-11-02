@@ -2,6 +2,32 @@
 
 All notable changes to this fork (`calcap-robin-stocks`) are recorded here.
 
+## 3.4.0.post3
+
+Calcap's sync service now reaches Robinhood only through this package.
+
+### Added
+- `robinhood.reads`: strict reads of a client's account for billing and
+  reports. Every failure raises (`Unauthorized` when Robinhood rejects the token,
+  `ReadFailed` otherwise); lists are read to their last page; 429 and 5xx answers
+  are retried briefly; the token is only sent to `api.robinhood.com` and
+  `bonfire.robinhood.com`, and statement downloads may only end at Robinhood's S3
+  bucket. Readers: `user_email`, `accounts` (retirement and managed accounts
+  included), `portfolio_profile`, `performance` (the performance chart's
+  "returns" line as dated values), `positions`, `quotes`, `stock_orders`,
+  `unified_transfers`, `dividends`, `sweeps`, `split_payments` (by account),
+  `instrument`, `documents`, `download`, `historicals` and `trusted_devices`
+  (`/devices/`, the app's Security > Devices list).
+- `clients.request_code`: swaps a login's app approval for a texted (or emailed)
+  code, as "Text me instead" does on robinhood.com
+  (`POST /challenge/<id>/replace/`).
+- `clients.verification_page`: Robinhood's device-verification page for a login
+  in progress, for diagnosing one that stalls.
+
+### Fixed
+- The daily upstream sync was skipped after the repository moved to the
+  `calcapfund` organization; it now runs there.
+
 ## 3.4.0.post2
 
 Endpoint refresh after a live audit of the Robinhood web app (2026-10). Every

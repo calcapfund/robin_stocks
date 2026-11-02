@@ -5,7 +5,29 @@ Calcap fork of Robin Stocks with transfer pagination and extended filtering.
 Distribution: ``calcap-robin-stocks``. Import: ``calcap_robin_stocks``.
 This package has not been published to PyPI. Install from this repository::
 
-    pip install "calcap-robin-stocks @ git+https://github.com/anarghya-das/robin_stocks.git"
+    uv add "calcap-robin-stocks @ git+https://github.com/calcapfund/robin_stocks.git"
+
+This package is Calcap's only way to Robinhood. Every Robinhood URL, request and
+login step lives here, so the Calcap sync service (``calcap_api``) never calls
+Robinhood itself; it decides what the answers mean. A new kind of Robinhood
+request belongs in this package, with an offline test.
+
+Calcap's additions, under ``calcap_robin_stocks.robinhood``:
+
+- ``clients``: one read-only session per client, so one process can read several
+  clients' accounts (``client_session``, ``refresh_tokens``), and logging in as
+  steps a web app can drive: ``start_login``, then ``check_login`` (app approval)
+  or ``submit_code`` (texted or emailed code), then ``finish_login``.
+  ``request_code`` swaps an app approval for a texted code, and
+  ``verification_page`` shows where Robinhood's device check stands.
+- ``reads``: strict reads of a client's account for anything built on it
+  (billing, reports). Unlike the package's usual helpers, which print errors and
+  return empty results, every failure raises (``Unauthorized`` or
+  ``ReadFailed``), lists are followed to their last page, a busy Robinhood is
+  retried, and the token only goes to Robinhood's hosts.
+
+See ``CHANGELOG.md`` for what each version changed and ``UPSTREAM_SYNC.md`` for
+how upstream changes are merged in.
 
 Upstream documentation and attribution follow below.
 
@@ -63,13 +85,13 @@ Installing
 ========================
 This fork is installed from GitHub and is not currently published to PyPI::
 
-    pip install "calcap-robin-stocks @ git+https://github.com/anarghya-das/robin_stocks.git"
+    uv add "calcap-robin-stocks @ git+https://github.com/calcapfund/robin_stocks.git"
 
 For an editable checkout::
 
-    git clone https://github.com/anarghya-das/robin_stocks.git
+    git clone https://github.com/calcapfund/robin_stocks.git
     cd robin_stocks
-    pip install -e .
+    uv venv && uv pip install -e .
 
 Use the renamed Python namespace::
 

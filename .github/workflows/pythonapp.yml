@@ -26,4 +26,5 @@ jobs:
           python -m unittest discover -s tests -p test_fork_compatibility.py -v
           python -m unittest discover -s tests -p test_filter_data.py -v
           python -m unittest discover -s tests -p test_client_sessions.py -v
+          python -m unittest discover -s tests -p test_reads.py -v
           python -m compileall -q calcap_robin_stocks
