@@ -159,9 +159,13 @@ def performance(account_number: str, span: str) -> List[Tuple[str, float]]:
             for point in segment.get("points") or []:
                 cursor = point.get("cursor_data") or {}
                 day = _chart_day(cursor)
-                amount = (cursor.get("price_chart_data") or {}).get("dollar_value") or {}
-                if day and amount.get("amount") is not None:
-                    points.append((day, float(amount["amount"])))
+                amount = ((cursor.get("price_chart_data") or {}).get("dollar_value") or {}).get("amount")
+                try:
+                    value = float(amount)
+                except (TypeError, ValueError):
+                    continue
+                if day:
+                    points.append((day, value))
     return points
 
 

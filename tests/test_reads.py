@@ -140,7 +140,14 @@ class TestEndpoints(ReadsTestCase):
                 {
                     "identifier": "returns",
                     "segments": [
-                        {"points": [point("Jan 2, 2026", "100.5"), point("Today", "1"), point("Jan 5, 2026", None)]},
+                        {
+                            "points": [
+                                point("Jan 2, 2026", "100.5"),
+                                point("Today", "1"),
+                                point("Jan 5, 2026", None),
+                                point("Jan 5, 2026", ""),
+                            ]
+                        },
                         {"points": [point("Jan 6, 2026", "101")]},
                     ],
                 },
