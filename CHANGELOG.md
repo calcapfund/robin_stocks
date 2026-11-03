@@ -2,6 +2,13 @@
 
 All notable changes to this fork (`calcap-robin-stocks`) are recorded here.
 
+## 3.4.0.post4
+
+### Changed
+- Requires Python 3.15 or newer (`python_requires='>=3.15'`), the version
+  Calcap's sync service runs. CI tests 3.15 only, and the daily upstream sync
+  runs on 3.15.
+
 ## 3.4.0.post3
 
 Calcap's sync service now reaches Robinhood only through this package.

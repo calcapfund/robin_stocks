@@ -92,7 +92,7 @@ For an editable checkout::
 
     git clone https://github.com/calcapfund/robin_stocks.git
     cd robin_stocks
-    uv venv && uv pip install -e .
+    uv venv --python 3.15 && uv pip install -e .
 
 Use the renamed Python namespace::
 
