@@ -15,7 +15,8 @@ only rules that rarely change.
 - **Python 3.15+** (CI runs 3.15), the version calcap_api, the only consumer, runs. Calcap's own
   files may use current syntax; leave upstream files' syntax alone so merges stay clean.
 - **Client sessions are read-only.** Never widen the allow-list in `clients.py` to a request that can
-  change an account.
+  change an account. Identi's workflow endpoint takes account-changing actions too, so only the
+  verification actions in `_WORKFLOW_ACTIONS` may go there, checked per request body.
 - **Strict reads raise** (`Unauthorized`, `ReadFailed`) instead of printing and returning empty, and
   send the token only to Robinhood's hosts.
 - **Every new request gets an offline test** using the fake Robinhood in
