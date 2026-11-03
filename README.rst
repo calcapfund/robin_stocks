@@ -27,7 +27,8 @@ Calcap's additions, under ``calcap_robin_stocks.robinhood``:
   retried, and the token only goes to Robinhood's hosts.
 
 See ``CHANGELOG.md`` for what each version changed and ``UPSTREAM_SYNC.md`` for
-how upstream changes are merged in.
+how upstream changes are merged in. Calcap's team keeps detailed docs in the private
+``calcap-docs`` repo (``robinhood-library/``).
 
 Upstream documentation and attribution follow below.
 
