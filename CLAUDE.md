@@ -12,8 +12,8 @@ only rules that rarely change.
 - **Calcap's code** is `calcap_robin_stocks/robinhood/clients.py` (per-client sessions, login steps)
   and `calcap_robin_stocks/robinhood/reads.py` (strict reads), plus small hooks in `globals.py` and
   `helper.py`. Keep changes to upstream files to a minimum, so the daily upstream merge stays clean.
-- **Python 3.9-compatible** (CI runs 3.9 and 3.12): `from __future__ import annotations`, `typing`
-  names (`Optional`, `Dict`, `List`), no `match`, no `X | Y` outside annotations.
+- **Python 3.15+** (CI runs 3.15), the version calcap_api, the only consumer, runs. Calcap's own
+  files may use current syntax; leave upstream files' syntax alone so merges stay clean.
 - **Client sessions are read-only.** Never widen the allow-list in `clients.py` to a request that can
   change an account.
 - **Strict reads raise** (`Unauthorized`, `ReadFailed`) instead of printing and returning empty, and

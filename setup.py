@@ -7,7 +7,7 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
     long_description = f.read()
 
 setup(name='calcap-robin-stocks',
-      version='3.4.0.post3',
+      version='3.4.0.post4',
       description='A Python wrapper around the Robinhood API',
       long_description=long_description,
       long_description_content_type='text/x-rst',
@@ -16,7 +16,7 @@ setup(name='calcap-robin-stocks',
       author_email='joshfernandes@mac.com',
       keywords=['robinhood','robin stocks','finance app','stocks','options','trading','investing'],
       license='MIT',
-      python_requires='>=3.9',
+      python_requires='>=3.15',
       packages=find_packages(include=['calcap_robin_stocks', 'calcap_robin_stocks.*']),
       requires=['requests', 'pyotp', 'cryptography'],
       install_requires=[
