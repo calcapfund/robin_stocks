@@ -17,8 +17,8 @@ refresh and verification steps.
 
 Logging in is split into steps a web app can drive, without prompts:
 ``start_login`` -> ``check_login`` or ``submit_code`` -> ``finish_login``. When
-an app approval doesn't arrive, ``request_code`` swaps it for a texted (or
-emailed) code, like "Text me instead" on robinhood.com; then ``submit_code``.
+an app approval doesn't arrive, ``request_code`` swaps it for a texted code,
+like "Text me instead" on robinhood.com; then ``submit_code``.
 ``verification_page`` shows where Robinhood's device check stands.
 
 Reading a client's account goes through ``reads`` (strict: every failure raises).
@@ -51,6 +51,9 @@ CLIENT_ID = "c82SH0WZOsabOXGP2sxqcj34FxkvfnWRZBKlBjFS"
 TIMEOUT = 20
 _HOST = "api.robinhood.com"
 _PATHFINDER = "https://api.robinhood.com/pathfinder"
+# Robinhood's verification workflow service. robinhood.com's "Text me instead" goes through it.
+_IDENTI_HOST = "identi.robinhood.com"
+_WORKFLOW_PATH = "/idl/v1/workflow/"
 
 # Requests that aren't reads but change nothing in the account: getting tokens
 # and answering Robinhood's device verification.
@@ -61,6 +64,17 @@ _AUTH_PATHS = (
     "/challenge/",
 )
 _READ_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+
+# The verification workflow's actions a client session may send (PATCH to identi's workflow path):
+# open the verification, take the app approval's fallback (a texted code) and answer that code.
+# The same address also takes actions that change an account (freezing it, for one), so each
+# request's action is checked, not only its address. Never add an action that changes an account.
+_WORKFLOW_ACTIONS = {
+    "entryPointAction": frozenset({"start"}),
+    "deviceApprovalChallengeAction": frozenset({"fallback"}),
+    "smsChallengeAction": frozenset({"submit", "proceed"}),
+}
+_WORKFLOW_FIELDS = frozenset({"clientVersion", "id", "screenName", "blockId"})
 
 
 class ReadOnlyViolation(PermissionError):
@@ -83,12 +97,34 @@ class LoginNotApproved(Exception):
     """The client hasn't approved the login yet. Check again shortly."""
 
 
-def is_allowed(method: str, url: str) -> bool:
-    """Whether a client session may send this request."""
-    if method.upper() in _READ_METHODS:
+def is_allowed(method: str, url: str, body: Union[bytes, str, None] = None) -> bool:
+    """Whether a client session may send this request. `body` matters only for identi's workflow."""
+    method = method.upper()
+    if method in _READ_METHODS:
         return True
     parts = urlsplit(url)
-    return parts.scheme == "https" and parts.hostname == _HOST and parts.path.startswith(_AUTH_PATHS)
+    if parts.scheme != "https":
+        return False
+    if parts.hostname == _HOST:
+        return parts.path.startswith(_AUTH_PATHS)
+    if parts.hostname == _IDENTI_HOST and method == "PATCH" and parts.path.startswith(_WORKFLOW_PATH):
+        return _is_verification_action(body)
+    return False
+
+
+def _is_verification_action(body: Union[bytes, str, None]) -> bool:
+    """A workflow request with exactly one of the allowed actions and nothing else."""
+    try:
+        data = json.loads(body) if body else None
+    except (TypeError, ValueError):
+        return False
+    if not isinstance(data, dict):
+        return False
+    actions = [key for key in data if key not in _WORKFLOW_FIELDS]
+    if len(actions) != 1 or actions[0] not in _WORKFLOW_ACTIONS:
+        return False
+    action = data[actions[0]]
+    return isinstance(action, dict) and len(action) <= 1 and set(action) <= _WORKFLOW_ACTIONS[actions[0]]
 
 
 class ReadOnlySession(Session):
@@ -102,7 +138,7 @@ class ReadOnlySession(Session):
         return super().request(method, url, *args, **kwargs)
 
     def send(self, request, **kwargs):
-        if not is_allowed(request.method, request.url):
+        if not is_allowed(request.method, request.url, request.body):
             raise ReadOnlyViolation(
                 f"{request.method} {urlsplit(request.url).path} was blocked: client sessions are read-only."
             )
@@ -227,6 +263,14 @@ class PendingLogin:
     #: "prompt" (approve in the Robinhood app), "sms" or "email" (type the code), or None.
     challenge_type: Optional[str] = None
     approved: bool = False
+    #: Robinhood's verification workflow for this login.
+    workflow_id: Optional[str] = None
+    #: Set by request_code: the verification moved to Robinhood's workflow service (identi),
+    #: whose screen (name and block) now holds the texted code. ``code_to_workflow`` says the
+    #: code is answered through that screen rather than to the challenge itself.
+    screen: Optional[str] = None
+    block_id: Optional[str] = None
+    code_to_workflow: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -266,29 +310,35 @@ def start_login(
     )
     if not machine.get("id"):
         raise LoginFailed("Robinhood didn't start device verification.")
-    return _read_challenge(session, PendingLogin(device_token=device_token, machine_id=machine["id"]))
+    pending = PendingLogin(device_token=device_token, machine_id=machine["id"], workflow_id=workflow["id"])
+    return _read_challenge(session, pending)
 
 
 def check_login(pending: PendingLogin, session: Optional[ReadOnlySession] = None) -> PendingLogin:
     """Ask whether the client has approved. Poll every few seconds until `approved`."""
     session = session or new_session()
+    if pending.screen:
+        # The texted code from request_code is approved through submit_code; the verification
+        # page may still show the app approval it replaced.
+        return pending
     if pending.challenge_type is None:
         return _read_challenge(session, pending)
     if pending.challenge_type == "prompt" and pending.challenge_id:
         status = _json(session.get(f"https://{_HOST}/push/{pending.challenge_id}/get_prompts_status/"))
         return replace(pending, approved=status.get("challenge_status") == "validated")
     if pending.challenge_type in _CODE_CHALLENGES and pending.challenge_id:
-        # A code is approved through submit_code. The verification page may still show the
-        # challenge request_code replaced, so don't read it back over this one.
+        # A code is approved through submit_code.
         return pending
     return _read_challenge(session, pending)
 
 
 def submit_code(pending: PendingLogin, code: str, session: Optional[ReadOnlySession] = None) -> PendingLogin:
     """Send the code Robinhood texted or emailed the client."""
+    session = session or new_session()
+    if pending.screen:
+        return _submit_workflow_code(session, pending, code)
     if not pending.challenge_id:
         raise LoginFailed("There's no code to answer yet. Check the login again.")
-    session = session or new_session()
     result = _json(session.post(challenge_url(pending.challenge_id), data={"response": code}))
     if result.get("status") != "validated":
         raise LoginFailed("Robinhood didn't accept that code.")
@@ -311,22 +361,41 @@ def verification_page(pending: PendingLogin, session: Optional[ReadOnlySession] 
 
 
 def request_code(pending: PendingLogin, method: str = "sms", session: Optional[ReadOnlySession] = None) -> PendingLogin:
-    """Have Robinhood text (or email) a code instead of waiting for an app approval.
+    """Have Robinhood text a code instead of waiting for an app approval ("Text me instead").
 
-    What "Text me instead" does on robinhood.com: replace the challenge with one of
-    another type. Answer the code with ``submit_code``.
+    Does what robinhood.com does: open the login's verification workflow (identi) and take the
+    app-approval screen's fallback, which texts a code. Answer it with ``submit_code``. If the
+    client approved in the app meanwhile, the result is already ``approved``.
     """
     if method not in _CODE_CHALLENGES:
         raise ValueError(f"method must be one of {_CODE_CHALLENGES}")
-    if not pending.challenge_id:
-        raise LoginFailed("There's no verification to change yet. Check the login again.")
     session = session or new_session()
-    challenge = _json(
-        session.post(f"https://{_HOST}/challenge/{pending.challenge_id}/replace/", data={"challenge_type": method})
+    workflow_id = pending.workflow_id or _workflow_id(session, pending)
+    if not workflow_id:
+        raise LoginFailed("There's no verification to change yet. Check the login again.")
+    data = _workflow(session, workflow_id, None, None, {"entryPointAction": {}}, "open the verification")
+    screen = _route_screen(data)
+    if screen and screen["name"] == "DEVICE_APPROVAL_CHALLENGE":
+        action = {"deviceApprovalChallengeAction": {"fallback": {}}}
+        data = _workflow(session, workflow_id, screen["name"], screen["block_id"], action, "text a code")
+        screen = _route_screen(data)
+    pending = replace(pending, workflow_id=workflow_id)
+    if _exit_status(data) == "WORKFLOW_STATUS_APPROVED":
+        return replace(pending, approved=True, screen="APPROVED")
+    if not screen or screen["name"] != "SMS_CHALLENGE":
+        where = screen["name"] if screen else _exit_status(data) or "no next step"
+        raise LoginFailed(f"Robinhood didn't offer a texted code ({where}).")
+    params = _field(screen["value"], "smsChallengeScreenParams") or {}
+    challenge = _field(params, "sheriffChallenge") or {}
+    return replace(
+        pending,
+        challenge_id=challenge.get("id"),
+        challenge_type="sms",
+        approved=False,
+        screen=screen["name"],
+        block_id=screen["block_id"],
+        code_to_workflow=bool(_field(params, "identiFrameworkEnabled")) or not challenge.get("id"),
     )
-    if not challenge.get("id"):
-        raise LoginFailed(_detail(challenge) or "Robinhood wouldn't send a code.")
-    return replace(pending, challenge_id=challenge["id"], challenge_type=challenge.get("type") or method, approved=False)
 
 
 def finish_login(
@@ -334,6 +403,11 @@ def finish_login(
 ) -> Tokens:
     """After approval, close the verification and log in again with the same device. Returns tokens."""
     session = session or new_session()
+    if pending.screen:
+        # Approved through the workflow (submit_code saw it end approved): log in again.
+        if not pending.approved:
+            raise LoginNotApproved("Robinhood hasn't confirmed the code yet.")
+        return _login_again(session, pending, username, password)
     status = _json(
         session.post(
             f"{_PATHFINDER}/inquiries/{pending.machine_id}/user_view/",
@@ -346,6 +420,10 @@ def finish_login(
     )
     if result != "workflow_status_approved":
         raise LoginNotApproved("Robinhood hasn't confirmed the approval yet.")
+    return _login_again(session, pending, username, password)
+
+
+def _login_again(session, pending: PendingLogin, username: str, password: str) -> Tokens:
     data = _password_grant(session, username, password, pending.device_token, None)
     if not data.get("access_token"):
         raise LoginFailed(_detail(data) or "Robinhood still wants verification.")
@@ -371,6 +449,90 @@ def _password_grant(session, username, password, device_token, mfa_code) -> Dict
     if mfa_code:
         payload["mfa_code"] = mfa_code
     return _json(session.post(login_url(), data=payload))
+
+
+def _submit_workflow_code(session, pending: PendingLogin, code: str) -> PendingLogin:
+    """Answer the texted code on identi's code screen the way robinhood.com does, then check the
+    verification ended approved."""
+    if pending.screen == "APPROVED":
+        return replace(pending, approved=True)
+    workflow, screen, block = pending.workflow_id, pending.screen, pending.block_id
+    proceed = {"smsChallengeAction": {"proceed": {}}}
+    if pending.code_to_workflow:
+        data = _workflow(
+            session, workflow, screen, block, {"smsChallengeAction": {"submit": {"code": code}}}, "check the code"
+        )
+        response = _field(data, "smsChallengeActionResponse") or {}
+        dialog = _field(response, "errorDialog")
+        if dialog:
+            if _field(dialog, "actionOnDismiss") != "PROCEED":
+                message = dialog.get("message") or dialog.get("title")
+                raise LoginFailed(str(message)[:200] if message else "Robinhood didn't accept that code.")
+            data = _workflow(session, workflow, screen, block, proceed, "finish the verification")
+    else:
+        if not pending.challenge_id:
+            raise LoginFailed("There's no code to answer yet. Check the login again.")
+        result = _json(session.post(challenge_url(pending.challenge_id), data={"response": code}))
+        if result.get("status") != "validated":
+            raise LoginFailed("Robinhood didn't accept that code.")
+        data = _workflow(session, workflow, screen, block, proceed, "finish the verification")
+    status = _exit_status(data)
+    if status != "WORKFLOW_STATUS_APPROVED":
+        next_screen = _route_screen(data)
+        where = status or (next_screen["name"] if next_screen else "no next step")
+        raise LoginFailed(f"Robinhood didn't accept that code ({where}).")
+    return replace(pending, approved=True)
+
+
+def _workflow(session, workflow_id: str, screen: Optional[str], block_id: Optional[str], action, step: str):
+    """Send one action to the verification workflow (identi), as robinhood.com does. Returns the
+    answer: ``route`` says what comes next, either another screen or the end."""
+    body: Dict[str, Any] = {"clientVersion": "1.0.0", "id": workflow_id, **action}
+    if screen:
+        body["screenName"] = screen
+    if block_id:
+        body["blockId"] = block_id
+    response = session.patch(
+        f"https://{_IDENTI_HOST}{_WORKFLOW_PATH}{workflow_id}/",
+        json=body,
+        headers={"Content-Type": "application/json"},
+    )
+    data = _json(response)
+    if response.status_code >= 400:
+        detail = _detail(data)
+        raise LoginFailed(f"Robinhood wouldn't {step} ({response.status_code}{': ' + detail if detail else ''}).")
+    return data
+
+
+def _route_screen(data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """The screen a workflow answer moves to: its name, block and the screen itself."""
+    route = _field(data, "route") or {}
+    screen = _field(_field(route, "replace") or {}, "screen")
+    if not isinstance(screen, dict):
+        return None
+    return {"name": screen.get("name"), "block_id": _field(screen, "blockId"), "value": screen}
+
+
+def _exit_status(data: Dict[str, Any]) -> Optional[str]:
+    """How a workflow answer ends the verification, such as WORKFLOW_STATUS_APPROVED, if it does."""
+    route = _field(data, "route") or {}
+    exit_ = _field(route, "exit")
+    return exit_.get("status") if isinstance(exit_, dict) else None
+
+
+def _field(data: Any, name: str) -> Any:
+    """A field from a workflow answer, by its JSON name or its proto name (block_id for blockId)."""
+    if not isinstance(data, dict):
+        return None
+    if name in data:
+        return data[name]
+    return data.get("".join(f"_{c.lower()}" if c.isupper() else c for c in name))
+
+
+def _workflow_id(session, pending: PendingLogin) -> Optional[str]:
+    """The verification workflow's ID from the verification page (logins started before it was kept)."""
+    view = _json(session.get(f"{_PATHFINDER}/inquiries/{pending.machine_id}/user_view/"))
+    return (view.get("context") or {}).get("verification_workflow_id")
 
 
 def _read_challenge(session, pending: PendingLogin) -> PendingLogin:
@@ -405,5 +567,5 @@ def _json(response: Response) -> Dict[str, Any]:
 
 
 def _detail(data: Dict[str, Any]) -> Optional[str]:
-    detail = data.get("detail") or data.get("error_description") or data.get("error")
+    detail = data.get("detail") or data.get("error_description") or data.get("error") or data.get("message")
     return str(detail)[:200] if detail else None

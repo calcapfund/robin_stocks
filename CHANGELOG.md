@@ -2,6 +2,31 @@
 
 All notable changes to this fork (`calcap-robin-stocks`) are recorded here.
 
+## 3.4.0.post5
+
+### Fixed
+- `clients.request_code` ("Text me instead") works for app-approval logins. It
+  used `POST /challenge/<id>/replace/`, which Robinhood only allows for a
+  challenge that offers an alternate type; an app approval has none, so it
+  always failed. It now does what robinhood.com does: it opens the login's
+  verification workflow at `identi.robinhood.com/idl/v1/workflow/<id>/` and
+  takes the app-approval screen's fallback, which texts a code. `submit_code`
+  answers that code the way the code screen asks (through the workflow, or to
+  the challenge followed by the workflow's "proceed"), and `finish_login` logs in
+  again once the workflow ends approved. If the client approved in the app
+  meanwhile, `request_code` returns the login already approved.
+
+### Changed
+- `PendingLogin` keeps the verification workflow's ID and, after
+  `request_code`, the workflow screen holding the code (`screen`, `block_id`,
+  `code_to_workflow`). Older saved values still load; their workflow ID is read
+  from the verification page.
+- Client sessions may send `PATCH` to identi's workflow path, but only with one
+  of the verification actions in `_WORKFLOW_ACTIONS` (open the verification,
+  take the approval's fallback, submit or proceed with the texted code). The
+  same endpoint takes account-changing actions, such as freezing the account,
+  and those stay blocked.
+
 ## 3.4.0.post4
 
 ### Changed
