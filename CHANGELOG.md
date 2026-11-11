@@ -2,6 +2,16 @@
 
 All notable changes to this fork (`calcap-robin-stocks`) are recorded here.
 
+## 3.4.0.post6
+
+### Added
+- `reads.portfolio_history(account_number, span="year")`: an account's value at
+  each day's close, from `GET api.robinhood.com/portfolios/historicals/<n>/`
+  (`interval=day`, `bounds=regular`), as Robinhood's `equity_historicals` rows.
+  Unlike `reads.performance`, these are balances, with deposits and withdrawals
+  left in, and they split the account into holdings (`close_market_value`) and
+  everything (`close_equity`).
+
 ## 3.4.0.post5
 
 ### Fixed
