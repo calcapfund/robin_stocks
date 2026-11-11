@@ -2,6 +2,16 @@
 
 All notable changes to this fork (`calcap-robin-stocks`) are recorded here.
 
+## 3.4.0.post9
+
+### Fixed
+- `reads.historicals` returned nothing for a delisted stock (JEPY, for one):
+  Robinhood leaves inactive instruments out of
+  `GET api.robinhood.com/quotes/historicals/` unless asked with
+  `include_inactive=true`, though it has their history. It now sends that
+  parameter. Active stocks' answers are unchanged (checked for SPY and QYLD,
+  2026-11-11).
+
 ## 3.4.0.post8
 
 Checked every endpoint against Robinhood with a signed-in session and its

@@ -267,10 +267,20 @@ def documents() -> List[dict]:
 
 
 def historicals(symbols: Iterable[str], span: str, interval: str = "day", bounds: str = "regular") -> List[dict]:
-    """Price history for several symbols at once, one result per symbol."""
+    """Price history for several symbols at once, one result per symbol.
+
+    Delisted stocks are included: without ``include_inactive`` Robinhood answers
+    for them with an empty result, though it still has their history.
+    """
     data = get(
         urls.historicals_url(),
-        {"symbols": ",".join(symbols), "interval": interval, "span": span, "bounds": bounds},
+        {
+            "symbols": ",".join(symbols),
+            "interval": interval,
+            "span": span,
+            "bounds": bounds,
+            "include_inactive": "true",
+        },
     )
     return [r for r in data.get("results") or [] if r]
 
