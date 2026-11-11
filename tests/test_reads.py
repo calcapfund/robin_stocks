@@ -211,6 +211,22 @@ class TestEndpoints(ReadsTestCase):
                 with self.assertRaises(reads.Unauthorized):
                     self.read({("GET", path): lambda r: (403, {})}, fn)
 
+    def test_historicals_include_delisted_stocks(self):
+        # Robinhood leaves a delisted stock's history out unless asked for inactive ones too.
+        answers = Answers((200, {"results": [{"symbol": "SPY", "historicals": []}, None]}))
+        rows = self.read({("GET", "/quotes/historicals/"): answers}, reads.historicals, ["SPY", "JEPY"], "5year")
+        self.assertEqual(rows, [{"symbol": "SPY", "historicals": []}])
+        self.assertEqual(
+            query(answers.requests[0]),
+            {
+                "symbols": "SPY,JEPY",
+                "interval": "day",
+                "span": "5year",
+                "bounds": "regular",
+                "include_inactive": "true",
+            },
+        )
+
     def test_instrument_by_id_or_url(self):
         routes = {("GET", "/instruments/i1/"): lambda r: (200, {"symbol": "AAPL"})}
         self.assertEqual(self.read(routes, reads.instrument, "i1")["symbol"], "AAPL")
