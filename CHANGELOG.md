@@ -2,6 +2,14 @@
 
 All notable changes to this fork (`calcap-robin-stocks`) are recorded here.
 
+## 3.4.0.post7
+
+### Removed
+- `reads.portfolio_history`, added in 3.4.0.post6. Robinhood answers
+  `GET api.robinhood.com/portfolios/historicals/<n>/` with 404 for every
+  account tried (individual, Roth and traditional IRA), so it can't give daily
+  balances. calcap_api never shipped a use of it that worked.
+
 ## 3.4.0.post6
 
 ### Added
