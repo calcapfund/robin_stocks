@@ -177,24 +177,6 @@ def _chart_day(cursor: dict) -> Optional[str]:
         return None
 
 
-def portfolio_history(account_number: str, span: str = "year") -> List[dict]:
-    """An account's value at each day's close (``equity_historicals``), oldest first.
-
-    Each row has ``begins_at`` (the day, as midnight UTC), ``close_equity`` (the
-    whole account: holdings and cash), ``close_market_value`` (the holdings),
-    ``adjusted_close_equity``, the ``open_*`` counterparts, ``net_return`` and
-    ``session``, all as strings. Unlike ``performance``, these are balances:
-    deposits and withdrawals aren't taken out. ``span`` ``"year"`` gives every
-    trading day of the last twelve months. Each account must be asked for by
-    number.
-    """
-    data = get(
-        urls.portfolis_historicals_url(account_number),
-        {"interval": "day", "span": span, "bounds": "regular"},
-    )
-    return [r for r in data.get("equity_historicals") or [] if isinstance(r, dict)]
-
-
 def positions(account_number: str) -> List[dict]:
     """An account's positions, without the ones Robinhood keeps at zero."""
     return paged(urls.positions_url(account_number), {"nonzero": "true"})

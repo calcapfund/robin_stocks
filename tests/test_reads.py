@@ -158,18 +158,6 @@ class TestEndpoints(ReadsTestCase):
         self.assertEqual(points, [("2026-01-02", 100.5), ("2026-01-06", 101.0)])
         self.assertEqual(query(answers.requests[0])["display_span"], "ytd")
 
-    def test_portfolio_history_reads_each_close(self):
-        rows = [{"begins_at": "2026-10-30T00:00:00Z", "close_equity": "86618.95", "close_market_value": "73000.00"}]
-        answers = Answers((200, {"span": "year", "equity_historicals": rows + [None]}))
-        got = self.read({("GET", "/portfolios/historicals/5QR1/"): answers}, reads.portfolio_history, "5QR1")
-        self.assertEqual(got, rows)
-        self.assertEqual(query(answers.requests[0]), {"interval": "day", "span": "year", "bounds": "regular"})
-        self.assertEqual({auth for _, _, auth, _ in self.adapter.calls}, {"Bearer access-a"})
-
-    def test_portfolio_history_failure_raises(self):
-        with self.assertRaises(reads.ReadFailed):
-            self.read({("GET", "/portfolios/historicals/5QR1/"): lambda r: (404, {})}, reads.portfolio_history, "5QR1")
-
     def test_quotes_skip_unknown_symbols(self):
         answers = Answers((200, {"results": [{"symbol": "AAPL"}, None]}))
         self.assertEqual(self.read({}, reads.quotes, []), [])
