@@ -2,6 +2,46 @@
 
 All notable changes to this fork (`calcap-robin-stocks`) are recorded here.
 
+## 3.4.0.post8
+
+Checked every endpoint against Robinhood with a signed-in session and its
+read-only token (2026-11-11), and against the requests robinhood.com's own
+pages make.
+
+### Fixed
+- `reads.dividends` returned only the individual account's dividends. It now
+  sends `default_to_all_accounts=true` and `include_managed=true`, as
+  robinhood.com does, so retirement and managed accounts' dividends come back
+  too. `reads.sweeps` sends the same parameters.
+
+### Added
+- `reads.stock_loan_payments()`: stock lending payments, from
+  `GET api.robinhood.com/accounts/stock_loan_payments/`.
+- `reads.margin_interest_charges()`: interest charged on margin borrowing, from
+  `GET api.robinhood.com/cash_journal/margin_interest_charges/`.
+- `reads.adr_fees()`: ADR custody fees, from
+  `GET api.robinhood.com/corp_actions/adr_fees/`.
+- `reads.gold_fees()`: Robinhood Gold charges and their refunds, from
+  `GET bonfire.robinhood.com/gold/get_subscription_fee_list/`.
+- `reads.deposit_boost_payouts()`: cash paid for Gold's deposit boost, from
+  `GET bonfire.robinhood.com/gold/deposit_boost_paid_payouts/`.
+
+  The first three cover every account of the login. Margin interest and ADR
+  fees answered with an empty list on the account checked, so their rows
+  haven't been seen.
+
+### Removed
+Robinhood answers 404 for these, signed in or not:
+- `get_historical_portfolio` and `urls.portfolis_historicals_url`
+  (`/portfolios/historicals/<n>/`).
+- `get_latest_notification` and the `tracker` option of
+  `urls.notifications_url` (`/midlands/notifications/notification_tracker/`).
+- `get_wire_transfers` and `urls.wiretransfers_url` (`/wire/transfers`). Wires
+  are in `reads.unified_transfers`.
+- `get_top_100`, `get_top_movers`, `get_all_stocks_from_market_tag` and their
+  URL builders (`/midlands/tags/tag/<tag>/`).
+- `urls.popularity_url` (`/instruments/<id>/popularity/`); nothing used it.
+
 ## 3.4.0.post7
 
 ### Removed

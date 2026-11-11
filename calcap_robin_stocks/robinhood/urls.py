@@ -43,9 +43,6 @@ def security_profile_url():
 def user_profile_url():
     return('https://api.robinhood.com/user/')
 
-def portfolis_historicals_url(account_number):
-    return('https://api.robinhood.com/portfolios/historicals/{0}/'.format(account_number))
-
 # Stocks
 
 
@@ -76,9 +73,6 @@ def instruments_url():
 def news_url(symbol):
     return('https://api.robinhood.com/midlands/news/{0}/?'.format(symbol))
 
-
-def popularity_url(symbol):
-    return('https://api.robinhood.com/instruments/{0}/popularity/'.format(id_for_stock(symbol)))
 
 def quotes_url():
     return('https://api.robinhood.com/quotes/')
@@ -174,11 +168,8 @@ def margininterest_url():
     return('https://api.robinhood.com/cash_journal/margin_interest_charges/')
 
 
-def notifications_url(tracker=False):
-    if tracker:
-        return('https://api.robinhood.com/midlands/notifications/notification_tracker/')
-    else:
-        return('https://api.robinhood.com/notifications/devices/')
+def notifications_url():
+    return('https://api.robinhood.com/notifications/devices/')
 
 
 def referral_url():
@@ -196,10 +187,6 @@ def interest_rate_url():
 
 def subscription_url():
     return('https://api.robinhood.com/subscription/subscription_fees/')
-
-
-def wiretransfers_url():
-    return('https://api.robinhood.com/wire/transfers')
 
 
 def watchlists_url(name=None, add=False):
@@ -223,15 +210,6 @@ def market_hours_url(market, date):
 
 def movers_sp500_url():
     return('https://api.robinhood.com/midlands/movers/sp500/')
-
-def get_100_most_popular_url():
-    return('https://api.robinhood.com/midlands/tags/tag/100-most-popular/')
-
-def movers_top_url():
-    return('https://api.robinhood.com/midlands/tags/tag/top-movers/')
-
-def market_category_url(category):
-    return('https://api.robinhood.com/midlands/tags/tag/{}/'.format(category))
 
 # options
 

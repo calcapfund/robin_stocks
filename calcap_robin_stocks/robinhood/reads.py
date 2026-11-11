@@ -49,8 +49,13 @@ ACCOUNTS_PARAMS = {
     "include_multiple_individual": "true",
     "is_default": "false",
 }
+#: Without these, a list holds only the individual account's rows: an IRA's dividends
+#: and stock lending payments are left out.
+ALL_ACCOUNTS = {"default_to_all_accounts": "true", "include_managed": "true"}
 SWEEPS_URL = "https://api.robinhood.com/accounts/sweeps/"
 DEVICES_URL = "https://api.robinhood.com/devices/"
+GOLD_FEES_URL = "https://bonfire.robinhood.com/gold/get_subscription_fee_list/"
+DEPOSIT_BOOSTS_URL = "https://bonfire.robinhood.com/gold/deposit_boost_paid_payouts/"
 
 
 class Unauthorized(Exception):
@@ -203,13 +208,44 @@ def unified_transfers() -> List[dict]:
 
 
 def dividends() -> List[dict]:
-    """Every dividend, in every state, across the login's accounts."""
-    return paged(urls.dividends_url())
+    """Every dividend, in every state, across the login's accounts, retirement ones included."""
+    return paged(urls.dividends_url(), ALL_ACCOUNTS)
 
 
 def sweeps() -> List[dict]:
     """Cash sweep entries, including the interest paid on cash (``reason: "interest_payment"``)."""
-    return paged(SWEEPS_URL)
+    return paged(SWEEPS_URL, ALL_ACCOUNTS)
+
+
+def stock_loan_payments() -> List[dict]:
+    """What Robinhood paid for lending out the login's shares (stock lending), across its accounts.
+
+    A row's ``amount`` is an object (``{"amount", "currency_code"}``), with ``symbol`` and
+    ``record_date``.
+    """
+    return paged(urls.stockloan_url(), ALL_ACCOUNTS)
+
+
+def margin_interest_charges() -> List[dict]:
+    """Interest charged on margin borrowing, across the login's accounts."""
+    return paged(urls.margininterest_url(), ALL_ACCOUNTS)
+
+
+def adr_fees() -> List[dict]:
+    """Custody fees charged for holding ADRs, across the login's accounts."""
+    return paged(urls.adr_fees_url(), ALL_ACCOUNTS)
+
+
+def gold_fees() -> List[dict]:
+    """Every Robinhood Gold charge: ``amount``, ``credit``, ``date``, ``state``, the account
+    it was taken from and any ``refunds``."""
+    return paged(GOLD_FEES_URL)
+
+
+def deposit_boost_payouts() -> List[dict]:
+    """Cash Robinhood paid for Gold's deposit boost: ``amount``, ``created_at`` and the
+    account it went to."""
+    return paged(DEPOSIT_BOOSTS_URL)
 
 
 def split_payments(account_number: str) -> List[dict]:
