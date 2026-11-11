@@ -43,40 +43,6 @@ def load_unified_accounts(info=None):
     return(filter_data(data, info))
 
 @login_required
-def get_historical_portfolio(interval=None, span='week', bounds='regular',info=None):
-    interval_check = ['5minute', '10minute', 'hour', 'day', 'week']
-    span_check = ['day', 'week', 'month', '3month', 'year', '5year', 'all']
-    bounds_check = ['extended', 'regular', 'trading']
-
-    if interval not in interval_check:
-        if interval is None and (bounds != 'regular' and span != 'all'):
-            print ('ERROR: Interval must be None for "all" span "regular" bounds', file=get_output())
-            return ([None])
-        print(
-            'ERROR: Interval must be "5minute","10minute","hour","day",or "week"', file=get_output())
-        return([None])
-    if span not in span_check:
-        print('ERROR: Span must be "day","week","month","3month","year",or "5year"', file=get_output())
-        return([None])
-    if bounds not in bounds_check:
-        print('ERROR: Bounds must be "extended","regular",or "trading"')
-        return([None])
-    if (bounds == 'extended' or bounds == 'trading') and span != 'day':
-        print('ERROR: extended and trading bounds can only be used with a span of "day"', file=get_output())
-        return([None])
-
-    account = load_account_profile(info='account_number')
-    url = portfolis_historicals_url(account)
-    payload = {
-        'interval': interval,
-        'span': span,
-        'bounds': bounds
-    }
-    data = request_get(url, 'regular', payload)
-
-    return(filter_data(data, info))
-
-@login_required
 def get_all_positions(info=None):
     """Returns a list containing every position ever traded.
 
@@ -235,33 +201,6 @@ def get_notifications(info=None):
     url = notifications_url()
     data = request_get(url, 'pagination')
 
-    return(filter_data(data, info))
-
-
-@login_required
-def get_latest_notification():
-    """Returns the time of the latest notification.
-
-    :returns: Returns a dictionary of key/value pairs. But there is only one key, 'last_viewed_at'
-
-    """
-    url = notifications_url(True)
-    data = request_get(url)
-    return(data)
-
-
-@login_required
-def get_wire_transfers(info=None):
-    """Returns a list of wire transfers.
-
-    :param info: Will filter the results to get a specific value.
-    :type info: Optional[str]
-    :returns: Returns a list of dictionaries of key/value pairs for each wire transfer. If info parameter is provided, \
-    a list of strings is returned where the strings are the value of the key that matches info.
-
-    """
-    url = wiretransfers_url()
-    data = request_get(url, 'pagination')
     return(filter_data(data, info))
 
 

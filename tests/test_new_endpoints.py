@@ -41,6 +41,13 @@ class TestEndpointUrls(unittest.TestCase):
         # phoenix.robinhood.com no longer completes a TLS handshake; the builder is gone.
         self.assertFalse(hasattr(urls, 'phoenix_url'))
 
+    def test_dead_urls_removed(self):
+        # Robinhood answers 404 for these with a signed-in session (2026-11-11).
+        for name in ('portfolis_historicals_url', 'popularity_url', 'wiretransfers_url',
+                     'get_100_most_popular_url', 'movers_top_url', 'market_category_url'):
+            self.assertFalse(hasattr(urls, name), name)
+        self.assertEqual(urls.notifications_url(), 'https://api.robinhood.com/notifications/devices/')
+
 
 class TestExports(unittest.TestCase):
     """The package's public surface reflects the add/remove."""
@@ -52,7 +59,10 @@ class TestExports(unittest.TestCase):
             self.assertTrue(hasattr(rh, name), name)
 
     def test_removed_function_not_exported(self):
-        self.assertFalse(hasattr(rh, 'load_phoenix_account'))
+        for name in ('load_phoenix_account', 'get_historical_portfolio', 'get_latest_notification',
+                     'get_wire_transfers', 'get_top_100', 'get_top_movers',
+                     'get_all_stocks_from_market_tag'):
+            self.assertFalse(hasattr(rh, name), name)
 
 
 class TestAccountFunctions(unittest.TestCase):

@@ -171,6 +171,46 @@ class TestEndpoints(ReadsTestCase):
         self.assertEqual(rows, [{"id": "p1"}])
         self.assertEqual(query(answers.requests[0]), {"account_number": "5QR1"})
 
+    def test_lists_cover_every_account(self):
+        # Without these parameters Robinhood answers with the individual account's rows only.
+        for path, fn in (
+            ("/dividends/", reads.dividends),
+            ("/accounts/sweeps/", reads.sweeps),
+            ("/accounts/stock_loan_payments/", reads.stock_loan_payments),
+            ("/cash_journal/margin_interest_charges/", reads.margin_interest_charges),
+            ("/corp_actions/adr_fees/", reads.adr_fees),
+        ):
+            with self.subTest(path):
+                pages = Answers(
+                    (200, {"results": [{"id": "r1"}], "next": f"https://api.robinhood.com{path}?cursor=2"}),
+                    (200, {"results": [{"id": "r2"}], "next": None}),
+                )
+                rows = self.read({("GET", path): pages}, fn)
+                self.assertEqual([r["id"] for r in rows], ["r1", "r2"])
+                self.assertEqual(
+                    query(pages.requests[0]), {"default_to_all_accounts": "true", "include_managed": "true"}
+                )
+                self.assertEqual({auth for _, _, auth, _ in self.adapter.calls}, {"Bearer access-a"})
+                with self.assertRaises(reads.Unauthorized):
+                    self.read({("GET", path): lambda r: (401, {})}, fn)
+
+    def test_gold_fees_and_deposit_boosts(self):
+        for path, fn in (
+            ("/gold/get_subscription_fee_list/", reads.gold_fees),
+            ("/gold/deposit_boost_paid_payouts/", reads.deposit_boost_payouts),
+        ):
+            with self.subTest(path):
+                pages = Answers(
+                    (200, {"results": [{"id": "g1"}], "next": f"https://bonfire.robinhood.com{path}?cursor=2"}),
+                    (200, {"results": [{"id": "g2"}], "next": None}),
+                )
+                rows = self.read({("GET", path): pages}, fn)
+                self.assertEqual([r["id"] for r in rows], ["g1", "g2"])
+                self.assertEqual(urlsplit(pages.requests[0].url).hostname, "bonfire.robinhood.com")
+                self.assertEqual({auth for _, _, auth, _ in self.adapter.calls}, {"Bearer access-a"})
+                with self.assertRaises(reads.Unauthorized):
+                    self.read({("GET", path): lambda r: (403, {})}, fn)
+
     def test_instrument_by_id_or_url(self):
         routes = {("GET", "/instruments/i1/"): lambda r: (200, {"symbol": "AAPL"})}
         self.assertEqual(self.read(routes, reads.instrument, "i1")["symbol"], "AAPL")

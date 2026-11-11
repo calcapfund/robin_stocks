@@ -493,46 +493,6 @@ class TestMarkets:
     def teardown_class(cls):
         r.logout()
 
-    def test_top_movers(self):
-        movers = r.get_top_movers()
-        assert (movers)
-        first = movers[0]
-        assert ('ask_price' in first)
-        assert ('ask_size' in first)
-        assert ('bid_price' in first)
-        assert ('bid_size' in first)
-        assert ('last_trade_price' in first)
-        assert ('last_extended_hours_trade_price' in first)
-        assert ('previous_close' in first)
-        assert ('adjusted_previous_close' in first)
-        assert ('previous_close_date' in first)
-        assert ('symbol' in first)
-        assert ('trading_halted' in first)
-        assert ('has_traded' in first)
-        assert ('last_trade_price_source' in first)
-        assert ('updated_at' in first)
-        assert ('instrument' in first)
-
-    def test_top_100(self):
-        movers = r.get_top_100()
-        assert (movers)
-        first = movers[0]
-        assert ('ask_price' in first)
-        assert ('ask_size' in first)
-        assert ('bid_price' in first)
-        assert ('bid_size' in first)
-        assert ('last_trade_price' in first)
-        assert ('last_extended_hours_trade_price' in first)
-        assert ('previous_close' in first)
-        assert ('adjusted_previous_close' in first)
-        assert ('previous_close_date' in first)
-        assert ('symbol' in first)
-        assert ('trading_halted' in first)
-        assert ('has_traded' in first)
-        assert ('last_trade_price_source' in first)
-        assert ('updated_at' in first)
-        assert ('instrument' in first)
-
     def test_top_movers_sp500(self):
         # going up
         movers = r.get_top_movers_sp500('up')
@@ -553,26 +513,6 @@ class TestMarkets:
         first = movers[0]
         assert (float(first['price_movement']
                 ['market_hours_last_movement_pct']) < 0)
-
-    def test_get_all_stocks_from_market_tag(self):
-        movers = r.get_all_stocks_from_market_tag('technology')
-        assert (movers)
-        first = movers[0]
-        assert ('ask_price' in first)
-        assert ('ask_size' in first)
-        assert ('bid_price' in first)
-        assert ('bid_size' in first)
-        assert ('last_trade_price' in first)
-        assert ('last_extended_hours_trade_price' in first)
-        assert ('previous_close' in first)
-        assert ('adjusted_previous_close' in first)
-        assert ('previous_close_date' in first)
-        assert ('symbol' in first)
-        assert ('trading_halted' in first)
-        assert ('has_traded' in first)
-        assert ('last_trade_price_source' in first)
-        assert ('updated_at' in first)
-        assert ('instrument' in first)
 
     def test_get_markets(self):
         markets = r.get_markets()
